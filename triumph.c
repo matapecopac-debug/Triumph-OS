@@ -706,14 +706,16 @@ static int b_kpanic(Cmd *c){(void)c;
     raw.c_lflag&=~(ECHO|ICANON);
     tcsetattr(0,TCSAFLUSH,&raw);
     /* red screen */
-    write(1,"[2J[H[41m[37m[1m",20);
     int cols=80,rows=24;
     struct winsize ws;
     if(ioctl(1,TIOCGWINSZ,&ws)==0&&ws.ws_col&&ws.ws_row){cols=ws.ws_col;rows=ws.ws_row;}
-    /* fill screen red */
+    /* fill every cell with red background */
+    write(1,"[2J[H[41m[97m[1m",21);
     for(int i=0;i<rows;i++){
+        char mv[16]; snprintf(mv,16,"[%d;1H",i+1); write(1,mv,strlen(mv));
         for(int j=0;j<cols;j++) write(1," ",1);
     }
+    write(1,"[H",3);
     /* centre the panic message */
     const char *lines[]={
         "[ TRIUMPH OS KERNEL PANIC ]",
