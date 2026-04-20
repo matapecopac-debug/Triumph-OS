@@ -42,6 +42,11 @@
 #define MAG "\x1b[38;5;207m"
 #define GRY "\x1b[38;5;245m"
 #define WHT "\x1b[38;5;255m"
+#define ORG "\x1b[38;5;208m"
+#define PNK "\x1b[38;5;213m"
+
+/* theme colour - used for prompt accents, changed by the `clr` builtin */
+static char g_theme[32] = "\x1b[38;5;51m";  /* default cyan */
 
 typedef struct { char *name; char *value; } Alias;
 
@@ -102,8 +107,8 @@ static void print_prompt(void){
     char host[64]; gethostname(host,sizeof(host));
     const char *arrow=(last_exit==0)?GRN:RED;
     const char *sym=(getuid()==0)?"#":"$";
-    fprintf(stdout,"\r\n"BLD CYN"╭─"RST BLD"["YLW"%s"GRY"@"BLU"%s"BLD"]"GRY"─"BLD"["GRN"%s"BLD"]"RST"\r\n",user,host,disp);
-    fprintf(stdout,BLD CYN"╰─"RST"%s"BLD"%s "RST,arrow,sym);
+    fprintf(stdout,"\r\n"BLD"%s╭─"RST BLD"["YLW"%s"GRY"@"BLU"%s"BLD"]"GRY"─"BLD"["GRN"%s"BLD"]"RST"\r\n",g_theme,user,host,disp);
+    fprintf(stdout,BLD"%s╰─"RST"%s"BLD"%s "RST,g_theme,arrow,sym);
     fflush(stdout);
 }
 
@@ -556,11 +561,6 @@ static int b_fetch(Cmd *c){(void)c;
         " "CYN BLD"TTTTTT  T:::::T  TTTTTT"RST,
         " "CYN BLD"        T:::::T        "RST,
         " "CYN BLD"        T:::::T        "RST,
-        " "CYN BLD"        T:::::T        "RST,
-        " "CYN BLD"        T:::::T        "RST,
-        " "CYN BLD"        T:::::T        "RST,
-        " "CYN BLD"        T:::::T        "RST,
-        " "CYN BLD"        T:::::T        "RST,
         " "CYN BLD"      TT:::::::TT      "RST,
         " "CYN BLD"      T:::::::::T      "RST,
         " "CYN BLD"      T:::::::::T      "RST,
@@ -573,7 +573,7 @@ static int b_fetch(Cmd *c){(void)c;
     snprintf(info[ni++],256,"  "BLD CYN"Kernel"RST": "GRN"Triumph v%s"RST,SH_VERSION);
     snprintf(info[ni++],256,"  "BLD CYN"Shell"RST": "GRN"triumph v%s"RST,SH_VERSION);
     snprintf(info[ni++],256,"  "BLD CYN"CPU"RST": "GRN"%s (%d)"RST,cpu,cores);
-    snprintf(info[ni++],256,"  "BLD CYN"Memory"RST": %s%lu%s/%s%lu%s MiB",mu*100/mt>80?RED:GRN,mu,RST,CYN,mt,RST);
+    snprintf(info[ni++],256,"  "BLD CYN"Memory"RST": %s%lu%s/%s%lu%s MiB",(mt&&mu*100/mt>80)?RED:GRN,mu,RST,CYN,mt,RST);
     snprintf(info[ni++],256,"  "BLD CYN"Uptime"RST": "GRN"%ldh %ldm"RST,uh,um);
 
     char bar[256]="  ";
@@ -603,7 +603,7 @@ static int b_help(Cmd *c){(void)c;
         {"history","command history"},{"export/unset","env variables"},
         {"alias/unalias","manage aliases"},{"read","read input"},
         {"source/.","run script"},{"test/[","evaluate conditions"},
-        {"clear","clear screen"},{"nano/edit","text editor"},{"snake","snake game"},{"tetris","tetris game"},{"calc","calculator (calc 2+2)"},{"figlet","big ASCII text"},{"poweroff","power off the machine"},{"fetch","system info panel"},
+        {"clear","clear screen"},{"nano/edit","text editor"},{"snake","snake game"},{"tetris","tetris game"},{"pongy","2-player pong vs AI"},{"chicken","endless runner (SPACE to jump)"},{"clr -[r/o/y/g/b/m/c/p/w/k]","change prompt colour"},{"calc","calculator (calc 2+2)"},{"figlet","big ASCII text"},{"poweroff","power off the machine"},{"fetch","system info panel"},
         {"help","this help"},{"exit","quit shell"},{NULL,NULL}};
     for(int i=0;h[i][0];i++) printf("  %s%-20s%s %s%s%s\n",GRN,h[i][0],RST,GRY,h[i][1],RST);
     printf("\n"GRY"Pipes: cmd1 | cmd2    Redirect: > >> < 2>    Background: cmd &\n\n"RST);
@@ -626,14 +626,47 @@ static int b_reboot(Cmd *c){(void)c;
 #include "editor.c"
 #include "snake.c"
 #include "tetris.c"
+#include "pongy.c"
+#include "chicken.c"
 #include "tools.c"
+
+static int b_clr(Cmd *c) {
+    if (c->argc < 2) {
+        printf(BLD"Usage: clr -[r|o|y|g|b|m|c|p|w|k]"RST"\n");
+        printf("  -r red    -o orange  -y yellow\n");
+        printf("  -g green  -b blue    -m magenta\n");
+        printf("  -c cyan   -p pink    -w white\n");
+        printf("  -k reset to default (cyan)\n");
+        return 1;
+    }
+    const char *a = c->argv[1];
+    if (a[0] != '-' || a[1] == 0 || a[2] != 0) {
+        printf(RED"clr: bad flag '%s'"RST"\n", a); return 1;
+    }
+    switch (a[1]) {
+        case 'r': strcpy(g_theme,"\x1b[38;5;196m"); break;
+        case 'o': strcpy(g_theme,"\x1b[38;5;208m"); break;
+        case 'y': strcpy(g_theme,"\x1b[38;5;226m"); break;
+        case 'g': strcpy(g_theme,"\x1b[38;5;82m");  break;
+        case 'b': strcpy(g_theme,"\x1b[38;5;39m");  break;
+        case 'm': strcpy(g_theme,"\x1b[38;5;207m"); break;
+        case 'c': strcpy(g_theme,"\x1b[38;5;51m");  break;
+        case 'p': strcpy(g_theme,"\x1b[38;5;213m"); break;
+        case 'w': strcpy(g_theme,"\x1b[38;5;255m"); break;
+        case 'k': strcpy(g_theme,"\x1b[38;5;51m");  break;
+        default:
+            printf(RED"clr: unknown colour '-%c'"RST"\n", a[1]); return 1;
+    }
+    printf("%sPrompt colour changed"RST"\n", g_theme);
+    return 0;
+}
 
 typedef int (*BFn)(Cmd*);
 typedef struct{const char *n;BFn fn;}BE;
 static BE btab[]={
     {"[",b_test},{"alias",b_alias},{"cat",b_cat},{"cd",b_cd},{"chmod",b_chmod},
     {"clear",b_clear},{"cp",b_cp},{"date",b_date},{"df",b_df},{"du",b_du},
-    {"echo",b_echo},{"edit",b_edit},{"nano",b_edit},{"vi",b_edit},{"snake",b_snake},{"tetris",b_tetris},{"calc",b_calc},{"figlet",b_figlet},{"ascii",b_figlet},{"poweroff",b_poweroff},{"shutdown",b_poweroff},{"reboot",b_reboot},
+    {"echo",b_echo},{"edit",b_edit},{"nano",b_edit},{"vi",b_edit},{"snake",b_snake},{"tetris",b_tetris},{"pongy",b_pongy},{"chicken",b_chicken},{"clr",b_clr},{"calc",b_calc},{"figlet",b_figlet},{"ascii",b_figlet},{"poweroff",b_poweroff},{"shutdown",b_poweroff},{"reboot",b_reboot},
     {"env",b_env},{"false",b_false},{"fetch",b_fetch},{"file",b_file},
     {"find",b_find},{"free",b_free},{"grep",b_grep},{"head",b_head},{"help",b_help},
     {"history",b_history},{"hostname",b_hostname},{"id",b_id},{"kill",b_kill},
